@@ -1,0 +1,134 @@
+name: Build KernelSU-LKM
+permissions:
+  contents: write
+  actions: write
+
+on:
+  workflow_call:
+    inputs:
+      model:
+        required: true
+        type: string
+      soc:
+        required: true
+        type: string
+      branch:
+        required: true
+        type: string
+      android_version:
+        required: true
+        type: string
+      kernel_version:
+        required: true
+        type: string
+      lto:
+        required: false
+        type: string 
+        
+jobs:
+  build-kernel-samsung-LKMkernel:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 8192
+          temp-reserve-mb: 2048
+          swap-size-mb: 8192
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y clang llvm lld git zip build-essential xz-utils bison flex libz-dev libssl-dev libelf-dev bc cpio python3 pahole
+
+      - name: Install Repo and Python
+        run: |
+          sudo apt update
+          sudo apt install repo python3 python-is-python3
+
+      - name: Set CONFIG Environment Variable
+        run: |
+          CONFIG="${{ inputs.model }}"
+          echo "CONFIG=$CONFIG" >> $GITHUB_ENV
+          echo "CONFIG set to: $CONFIG"
+
+      - name: Clone AnyKernel3 and Other Dependencies
+        run: |
+          echo "Cloning AnyKernel3 and other dependencies..."
+          
+          ANYKERNEL_BRANCH="main"
+
+          # Debug print the branches
+          echo "Using branch for AnyKernel3: $ANYKERNEL_BRANCH"
+
+          # Clone repositories using the branch names
+          git clone https://github.com/Felixardian/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
+
+      - name: Initialize and Sync Kernel Source
+        run: |
+          echo "Creating folder for configuration: $CONFIG..."
+          mkdir -p "$CONFIG"
+          cd "$CONFIG"
+          echo "Cloning kernel source..."
+          git clone --branch ${{ inputs.branch }} --single-branch https://github.com/Felixardian/samsung_sm8650_kernel.git .
+          git --version
+          git status
+
+      - name: Set Environment Variables
+        run: |
+          TARGET_DEFCONFIG="${{ inputs.soc }}_gki_defconfig"
+          LOCALVERSION="-${{ inputs.android_version }}-Felixardian"
+          if [[ "${{ inputs.lto }}" == "thin" ]]; then
+            LOCALVERSION+="-thin"
+          fi
+          echo "TARGET_DEFCONFIG=$TARGET_DEFCONFIG" >> $GITHUB_ENV
+          echo "LOCALVERSION=$LOCALVERSION" >> $GITHUB_ENV
+          echo "ARCH=arm64" >> $GITHUB_ENV
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "LLVM=1" >> $GITHUB_ENV
+          echo "LLVM_IAS=1" >> $GITHUB_ENV
+
+      - name: Configure Kernel
+        run: |
+          cd "$CONFIG"
+          echo "Configuring kernel..."
+          make -j$(nproc) O=$(pwd)/out ARCH=$ARCH $TARGET_DEFCONFIG
+          ./scripts/config --file out/.config \
+            -d UH \
+            -d RKP \
+            -d KDP \
+            -d SECURITY_DEFEX \
+            -d INTEGRITY \
+            -d FIVE \
+            -d TRIM_UNUSED_KSYMS
+          if [[ "${{ inputs.lto }}" == "thin" ]]; then
+            ./scripts/config --file out/.config -e LTO_CLANG_THIN -d LTO_CLANG_FULL
+          fi
+
+      - name: Build Kernel
+        run: |
+          cd "$CONFIG"
+          echo "Building kernel..."
+          make -j$(nproc) O=$(pwd)/out ARCH=$ARCH LOCALVERSION=$LOCALVERSION CC=$CC LLVM=$LLVM LLVM_IAS=$LLVM_IAS
+      - name: Prepare AnyKernel3 Folder
+        run: |
+          mkdir -p AnyKernel3
+          cp "$CONFIG/out/arch/arm64/boot/Image" AnyKernel3/zImage
+
+      - name: Create ZIP Files for Different Formats
+        run: |
+          cd AnyKernel3
+          ZIP_NAME="${{ inputs.model }}_${{ inputs.android_version }}_${{ inputs.kernel_version }}_LKM.zip"
+          zip -r "../$ZIP_NAME" .
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ env.CONFIG }}
+          path: |
+            *.zip
