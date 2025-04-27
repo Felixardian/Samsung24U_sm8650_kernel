@@ -80,7 +80,7 @@ jobs:
           mkdir -p "$CONFIG"
           cd "$CONFIG"
           echo "Cloning kernel source..."
-          git clone --branch ${{ inputs.branch }} --single-branch https://github.com/YuzakiKokuban/android_kernel_samsung_sm8650.git .
+          git clone --branch ${{ inputs.branch }} --single-branch https://github.com/Felixardian/Samsung24_sm8650_kernel.git .
           git --version
           git status
 
