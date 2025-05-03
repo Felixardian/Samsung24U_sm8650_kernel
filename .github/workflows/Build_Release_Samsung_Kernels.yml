@@ -76,9 +76,9 @@ jobs:
     env:
       REPO_OWNER: Felixardian
       REPO_NAME: Samsung_KernelSU_SUSFS
-      RELEASE_NAME: "*BUILD* Samsung Kernels With & SUSFS v1.5.5 *BUILD*"
+      RELEASE_NAME: "*BUILD* Samsung Kernels With & SUSFS *BUILD*"
       RELEASE_NOTES: |
-        This release contains KernelSU and SUSFS v1.5.5
+        This release contains KernelSU and SUSFS
         
         Module: 
         -> https://github.com/sidex15/ksu_module_susfs
