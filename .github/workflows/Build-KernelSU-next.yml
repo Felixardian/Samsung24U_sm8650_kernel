@@ -109,8 +109,8 @@ jobs:
       - name: Apply KSU Hooks
         run: |
           cd "$CONFIG"
-          cp ../kernel_patches/next/syscall64_hooks.patch ./
-          patch -p1 --fuzz=3 < ./syscall64_hooks.patch
+          cp ../kernel_patches/next/syscall_hooks.patch ./
+          patch -p1 --fuzz=3 < ./syscall_hooks.patch
 
       - name: Add SUSFS Configuration Settings
         run: |
