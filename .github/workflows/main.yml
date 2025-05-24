@@ -115,8 +115,8 @@ jobs:
       - name: Apply KSU Hooks
         run: |
           cd "$CONFIG"
-          cp ../kernel_patches/next/syscall_hooks.patch ./
-          patch -p1 --fuzz=3 < ./syscall_hooks.patch
+          cp ../kernel_patches/next/next_hooks.patch ./
+          patch -p1 --fuzz=3 < ./next_hooks.patch
 
       - name: Apply Hide Stuff Patches
         run: |
@@ -131,7 +131,6 @@ jobs:
           echo "Adding configuration settings to pineapple_gki_defconfig..."
           echo "CONFIG_KSU=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_WITH_KPROBES=n" >> ./arch/arm64/configs/pineapple_gki_defconfig
-          echo "CONFIG_KPROBES=n" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
