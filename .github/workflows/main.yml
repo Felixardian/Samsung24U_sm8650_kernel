@@ -9,27 +9,27 @@ on:
       model:
         required: true
         type: string
-        default: true
+        default: samsung24u
       soc:
         required: true
         type: string
-        default: true
+        default: pineapple
       branch:
         required: true
         type: string
-        default: true
+        default: main
       android_version:
         required: true
         type: string
-        default: true
+        default: android14
       kernel_version:
         required: true
         type: string
-        default: true
+        default: 6.1
       lto:
         required: false
         type: string 
-        default: true
+        default: thin
 jobs:
   build-kernel-samsung-kernelsuNext-susfs:
     runs-on: ubuntu-latest
@@ -76,7 +76,7 @@ jobs:
           # Clone repositories using the branch names
           git clone https://github.com/Felixardian/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
-          git clone https://github.com/WildPlusKernel/kernel_patches.git
+          git clone https://github.com/Felixardian/kernel_patches.git
 
       - name: Initialize and Sync Kernel Source
         run: |
@@ -106,20 +106,8 @@ jobs:
 
           cd ./KernelSU-Next
           echo "Applying next SUSFS patches..."
-          cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
-          patch -p1 --forward --fuzz=3 < 10_enable_susfs_for_ksu.patch || true
-          cp ../../kernel_patches/next/fix_apk_sign.c.patch ./
-          patch -p1 --forward --fuzz=3 < fix_apk_sign.c.patch
-          cp ../../kernel_patches/next/fix_core_hook.c.patch ./
-          patch -p1 --forward --fuzz=3 < fix_core_hook.c.patch
-          cp ../../kernel_patches/next/fix_selinux.c.patch ./
-          patch -p1 --forward --fuzz=3 < fix_selinux.c.patch
-          cp ../../kernel_patches/next/fix_ksud.c.patch ./
-          patch -p1 --forward --fuzz=3 < fix_ksud.c.patch
-          cp ../../kernel_patches/next/fix_sucompat.c.patch ./
-          patch -p1 --forward --fuzz=3 < fix_sucompat.c.patch
-          sed -i '/bool ksu_devpts_hook = false;/d' ./kernel/sucompat.c
-          ;;
+          cp ../../kernel_patches/next/kernel-patch-susfs-v1.5.7-to-KernelSU-Next.patch ./
+          patch -p1 --forward < kernel-patch-susfs-v1.5.7-to-KernelSU-Next.patch || true
 
           cd ../
           patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
@@ -143,6 +131,7 @@ jobs:
           echo "Adding configuration settings to pineapple_gki_defconfig..."
           echo "CONFIG_KSU=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_WITH_KPROBES=n" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KPROBES=n" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
@@ -150,7 +139,7 @@ jobs:
           echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
           echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
