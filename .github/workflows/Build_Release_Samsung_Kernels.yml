@@ -60,7 +60,7 @@ jobs:
 
   trigger-release:
     runs-on: ubuntu-latest
-    needs: [build-kernel-24unext, build-kernel-24uLKM, build-SukiSU-Ultrakernel-24u, build-kernelsu-susfs24u, build-MKSUkernelSUSFS-24u]
+    needs: [build-kernel-24unext, build-kernel-24uLKM, build-SukiSU-Ultrakernel-24u, build-kernelsu-susfs24u,]
     if: ${{ inputs.make_release }}
     env:
       REPO_OWNER: Felixardian
@@ -82,15 +82,12 @@ jobs:
         SukiSU-Ultra Managers:
         -> https://github.com/ShirkNeko/SukiSU-Ultra
 
-        MKSU Managers:
-        -> https://github.com/5ec1cff/KernelSU
         
         Features:
         [+] KernelSU-Next
         [+] SukiSU-Ultra
         [+] KernelSULKM
         [+] KernelSU_SUSFS
-        [+] Magic_KernelSU
         [+] SUSFS v1.5.7
         [+] LKM mode need patch your init_boot
 
