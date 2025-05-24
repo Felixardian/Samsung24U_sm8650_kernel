@@ -58,17 +58,6 @@ jobs:
       kernel_version: "6.1"
       lto: "thin"
 
-  build-MKSUkernelSUSFS-24u:
-     uses: ./.github/workflows/BuildMKSU.yml
-     secrets: inherit
-     with:
-      model: "samsung24uMKSU"
-      soc: "pineapple"
-      branch: "main"
-      android_version: "android14"
-      kernel_version: "6.1"
-      lto: "thin"
-
   trigger-release:
     runs-on: ubuntu-latest
     needs: [build-kernel-24unext, build-kernel-24uLKM, build-SukiSU-Ultrakernel-24u, build-kernelsu-susfs24u, build-MKSUkernelSUSFS-24u]
