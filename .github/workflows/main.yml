@@ -1,0 +1,216 @@
+name: Build KernelSU-next
+permissions:
+  contents: write
+  actions: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        required: true
+        type: string
+        default: true
+      soc:
+        required: true
+        type: string
+        default: true
+      branch:
+        required: true
+        type: string
+        default: true
+      android_version:
+        required: true
+        type: string
+        default: true
+      kernel_version:
+        required: true
+        type: string
+        default: true
+      lto:
+        required: false
+        type: string 
+        default: true
+jobs:
+  build-kernel-samsung-kernelsuNext-susfs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 8192
+          temp-reserve-mb: 2048
+          swap-size-mb: 8192
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y clang llvm lld git zip build-essential xz-utils bison flex libz-dev libssl-dev libelf-dev bc cpio python3 pahole lz4
+
+      - name: Install Repo and Python
+        run: |
+          sudo apt update
+          sudo apt install repo python3 python-is-python3
+
+      - name: Set CONFIG Environment Variable
+        run: |
+          CONFIG="${{ inputs.model }}"
+          echo "CONFIG=$CONFIG" >> $GITHUB_ENV
+          echo "CONFIG set to: $CONFIG"
+
+      - name: Clone AnyKernel3 and Other Dependencies
+        run: |
+          echo "Cloning AnyKernel3 and other dependencies..."
+          
+          ANYKERNEL_BRANCH="main"
+          SUSFS_BRANCH="gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}"
+
+          # Debug print the branches
+          echo "Using branch for AnyKernel3: $ANYKERNEL_BRANCH"
+          echo "Using branch for SUSFS: $SUSFS_BRANCH"
+
+          # Clone repositories using the branch names
+          git clone https://github.com/Felixardian/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+          git clone https://github.com/WildPlusKernel/kernel_patches.git
+
+      - name: Initialize and Sync Kernel Source
+        run: |
+          echo "Creating folder for configuration: $CONFIG..."
+          mkdir -p "$CONFIG"
+          cd "$CONFIG"
+          echo "Cloning kernel source..."
+          git clone --branch ${{ inputs.branch }} --single-branch https://github.com/Felixardian/Samsung24U_sm8650_kernel.git  .
+          git --version
+          git status
+
+      - name: Add KernelSU
+        run: |
+          cd "$CONFIG"
+          echo "Adding KernelSU..."
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
+          KSU_VERSION=$(cd ./KernelSU-Next/kernel && git describe --tags --abbrev=0)
+          echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
+
+      - name: Apply SUSFS Patches
+        run: |
+          cd "$CONFIG"
+          echo "Applying SUSFS patches..."
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./
+          cp ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+
+          cd ./KernelSU-Next
+          echo "Applying next SUSFS patches..."
+          cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
+          patch -p1 --forward --fuzz=3 < 10_enable_susfs_for_ksu.patch || true
+          cp ../../kernel_patches/next/fix_apk_sign.c.patch ./
+          patch -p1 --forward --fuzz=3 < fix_apk_sign.c.patch
+          cp ../../kernel_patches/next/fix_core_hook.c.patch ./
+          patch -p1 --forward --fuzz=3 < fix_core_hook.c.patch
+          cp ../../kernel_patches/next/fix_selinux.c.patch ./
+          patch -p1 --forward --fuzz=3 < fix_selinux.c.patch
+          cp ../../kernel_patches/next/fix_ksud.c.patch ./
+          patch -p1 --forward --fuzz=3 < fix_ksud.c.patch
+          cp ../../kernel_patches/next/fix_sucompat.c.patch ./
+          patch -p1 --forward --fuzz=3 < fix_sucompat.c.patch
+          sed -i '/bool ksu_devpts_hook = false;/d' ./kernel/sucompat.c
+          ;;
+
+          cd ../
+          patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
+
+      - name: Apply KSU Hooks
+        run: |
+          cd "$CONFIG"
+          cp ../kernel_patches/next/syscall_hooks.patch ./
+          patch -p1 --fuzz=3 < ./syscall_hooks.patch
+
+      - name: Apply Hide Stuff Patches
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          cp ../kernel_patches/69_hide_stuff.patch ./
+          patch -p1 -F 3 < 69_hide_stuff.patch
+
+      - name: Add SUSFS Configuration Settings
+        run: |
+          cd "$CONFIG"
+          echo "Adding configuration settings to pineapple_gki_defconfig..."
+          echo "CONFIG_KSU=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_WITH_KPROBES=n" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/pineapple_gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/pineapple_gki_defconfig
+
+      - name: Set Environment Variables
+        run: |
+          TARGET_DEFCONFIG="${{ inputs.soc }}_gki_defconfig"
+          LOCALVERSION="-${{ inputs.android_version }}-Felixardian"
+          if [[ "${{ inputs.lto }}" == "thin" ]]; then
+            LOCALVERSION+="-thin"
+          fi
+          echo "TARGET_DEFCONFIG=$TARGET_DEFCONFIG" >> $GITHUB_ENV
+          echo "LOCALVERSION=$LOCALVERSION" >> $GITHUB_ENV
+          echo "ARCH=arm64" >> $GITHUB_ENV
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "LLVM=1" >> $GITHUB_ENV
+          echo "LLVM_IAS=1" >> $GITHUB_ENV
+
+      - name: Configure Kernel
+        run: |
+          cd "$CONFIG"
+          echo "Configuring kernel..."
+          make -j$(nproc) O=$(pwd)/out ARCH=$ARCH $TARGET_DEFCONFIG
+          ./scripts/config --file out/.config \
+            -d UH \
+            -d RKP \
+            -d KDP \
+            -d SECURITY_DEFEX \
+            -d INTEGRITY \
+            -d FIVE \
+            -d TRIM_UNUSED_KSYMS
+          if [[ "${{ inputs.lto }}" == "thin" ]]; then
+            ./scripts/config --file out/.config -e LTO_CLANG_THIN -d LTO_CLANG_FULL
+          fi
+
+      - name: Build Kernel
+        run: |
+          cd "$CONFIG"
+          echo "Building kernel..."
+          make -j$(nproc) O=$(pwd)/out ARCH=$ARCH LOCALVERSION=$LOCALVERSION CC=$CC LLVM=$LLVM LLVM_IAS=$LLVM_IAS
+
+      - name: Prepare AnyKernel3 Folder
+        run: |
+          mkdir -p AnyKernel3
+          cp "$CONFIG/out/arch/arm64/boot/Image" AnyKernel3/zImage
+
+      - name: Create ZIP Files for Different Formats
+        run: |
+          cd AnyKernel3
+          ZIP_NAME="${{ inputs.model }}_${{ inputs.android_version }}_${{ inputs.kernel_version }}_Next_SUSFS.zip"
+          zip -r "../$ZIP_NAME" .
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ env.CONFIG }}
+          path: |
+            *.zip
