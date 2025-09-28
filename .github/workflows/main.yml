@@ -107,7 +107,7 @@ jobs:
 
           cd ./KernelSU-Next
           echo "Applying next SUSFS patches..."
-          cp ../../kernel_patches/0001-kernel-Implement-SuSFS-1.5.10.patch ./
+          cp ../../kernelpatch/0001-kernel-Implement-SuSFS-1.5.10.patch ./
           patch -p1 < 0001-kernel-Implement-SuSFS-1.5.10.patch
           cd ../
           patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
