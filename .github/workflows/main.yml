@@ -115,7 +115,7 @@ jobs:
       - name: Apply KSU Hooks
         run: |
           cd "$CONFIG"
-          cp ../kernel_patches/next/scope_min_manual_hooks_v1.5.patch ./manual_hooks.patch
+          cp ../kernel_patches/next/scope_min_manual_hooks_v1.4.patch ./manual_hooks.patch
           patch -p1 --fuzz=3 < ./manual_hooks.patch
 
       - name: Apply Hide Stuff Patches
