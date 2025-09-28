@@ -116,8 +116,7 @@ jobs:
           patch -p1 --forward < fix_kernel_compat.c.patch
 
           cp ../../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch ./
-          patch -p1 --forward < fix_sucompat.c.patch
-          
+          patch -p1 --forward < fix_sucompat.c.patch  
           cd ../
           patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
