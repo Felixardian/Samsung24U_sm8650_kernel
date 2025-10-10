@@ -72,7 +72,7 @@ jobs:
           # Clone repositories using the branch names
           git clone https://github.com/Felixardian/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
-          git clone https://github.com/Felixardian/kernel_patches.git
+          git clone https://github.com/ShirkNeko/SukiSU_patch.git
 
       - name: Initialize and Sync Kernel Source
         run: |
@@ -108,8 +108,8 @@ jobs:
       - name: Apply KSU Hooks
         run: |
           cd "$CONFIG"
-          cp ../kernel_patches/next/syscall64_hooks.patch ./
-          patch -p1 --fuzz=3 < ./syscall64_hooks.patch
+          cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
+          patch -p1 --fuzz=3 < ./syscall_hooks.patch
 
       - name: Add SUSFS Configuration Settings
         run: |
