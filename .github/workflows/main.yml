@@ -92,8 +92,7 @@ jobs:
         run: |
           cd "$CONFIG"
           echo "Adding KernelSU..."
-          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1-dev
-          
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1-dev         
       - name: Apply SUSFS Patches
         run: |
           cd "$CONFIG"
