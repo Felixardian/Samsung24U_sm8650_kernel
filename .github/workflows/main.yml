@@ -93,7 +93,7 @@ jobs:
         run: |
           cd "$CONFIG"
           echo "Adding KernelSU..."
-          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1-dev
           KSU_VERSION=$(cd ./KernelSU-Next/kernel && git describe --tags --abbrev=0)
           echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
 
@@ -106,9 +106,9 @@ jobs:
           cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
 
           cd ./KernelSU-Next
-          echo "Applying next SUSFS patches..."
-          cp ../../kernelpatch/0001-kernel-Implement-SuSFS-1.5.10.patch ./
-          patch -p1 < 0001-kernel-Implement-SuSFS-1.5.10.patch
+ #         echo "Applying next SUSFS patches..."
+ #         cp ../../kernelpatch/0001-kernel-Implement-SuSFS-1.5.10.patch ./
+ #         patch -p1 < 0001-kernel-Implement-SuSFS-1.5.10.patch
           cd ../
           patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
